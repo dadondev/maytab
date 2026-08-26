@@ -331,5 +331,11 @@ async def toggle_setting_handler(callback_query: CallbackQuery):
 
 
 async def start_bot():
-    dp.include_routers(public_router, admin_router, guard_router, group_router)
+    """Start the bot via polling (default mode)."""
+    setup_bot()
     await dp.start_polling(bot)
+
+
+def setup_bot():
+    """Register all routers on the dispatcher. Used by both polling and webhook."""
+    dp.include_routers(public_router, admin_router, guard_router, group_router)
