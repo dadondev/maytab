@@ -7,8 +7,10 @@ requires-python = ">=3.14"
 dependencies = [
     "aiogram>=3.30.0",
     "dotenv>=0.9.9",
+    "fastapi>=0.115.0",
     "openpyexcel>=2.5.14",
     "openpyxl>=3.1.5",
     "phonenumbers>=9.0.36",
     "sqlalchemy>=2.0.51",
+    "uvicorn>=0.30.0",
 ]

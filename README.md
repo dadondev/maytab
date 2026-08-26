@@ -59,7 +59,11 @@ maytab/
 ├── main.py                  # Botni ishga tushirish (polling + scheduler)
 ├── pyproject.toml           # Loyiha va bog'liqliklar
 ├── requirements.txt         # Bog'liqliklar ro'yxati
+├── vercel.json              # Vercel konfiguratsiyasi
 ├── .env                     # Muhit o'zgaruvchilari (TOKEN, DB_URL, ADMIN_PASSWORD)
+│
+├── api/
+│   └── index.py             # FastAPI webhook ilovasi (Vercel uchun)
 │
 ├── bot/
 │   ├── bot.py               # Asosiy router va start handler
@@ -200,3 +204,49 @@ Agar bot ishlanmasa:
 1. `.env` faylida `TOKEN` va `ADMIN_PASSWORD` to'g'ri kiritilganligini tekshiring.
 2. Bir vaqtda faqat **bitta** bot instansiyasi ishlayotganiga ishonch hosil qiling (aks holda `TelegramConflictError` chiqadi).
 3. `python main.py` bilan ishga tushirib, konsol xatosini tekshiring.
+
+---
+
+## ☁️ Vercel'ga deploy qilish
+
+Vercel Python'ni **serverless ASGI funksiya** sifatida ishga tushiradi — uzoq muddatli jarayon (polling yoki scheduler) ishlamaydi. Shuning uchun Vercel'da bot **webhook** rejimida ishlaydi.
+
+### Talab qilinadigan fayllar
+- `api/index.py` — FastAPI webhook ilovasi (Vercel shu faylni ishga tushiradi).
+- `vercel.json` — Vercel konfiguratsiyasi.
+- `requirements.txt` — `fastapi` va `uvicorn` qo'shilgan.
+
+### 1. Muhit o'zgaruvchilari (Vercel dashboard → Settings → Environment Variables)
+```env
+TOKEN=YOUR_BOT_TOKEN
+DB_URL="sqlite:///database.db"
+ADMIN_PASSWORD="secret_admin_password"
+OWNER_CHAT_ID=123456789
+WEBHOOK_USE=1
+WEBHOOK_DOMAIN=https://your-app.vercel.app
+WEBHOOK_PATH=/webhook
+WEBHOOK_SECRET=your_secret_token
+```
+
+> ⚠️ **Muhim**: Vercel'da `DB_URL` sifatida `sqlite:///database.db` ishlatilsa, ma'lumotlar bazasi **har bir serverless funksiya chaqiruvida o'chib ketishi mumkin** (fayl tizimi doimiy emas). Doimiy ma'lumotlar uchun PostgreSQL kabi tashqi bazani ishlating, masalan:
+> ```
+> DB_URL=postgresql://user:password@host:5432/dbname
+> ```
+
+### 2. Deploy
+```bash
+# Vercel CLI orqali
+vercel
+
+# yoki GitHub reponi Vercel'ga ulang
+```
+
+### 3. Webhook'ni sozlash
+Ilova birinchi marta ishga tushganda `bot.set_webhook()` avtomatik chaqiriladi va Telegram webhook'ni `WEBHOOK_DOMAIN + WEBHOOK_PATH` manziliga o'rnatadi.
+
+### ⚠️ Vercel cheklovlari
+- **Scheduler ishlamaydi** — `services/scheduler.py` (05:00/08:00/16:00 yuborishlar va vazifalarni bajarish) serverless muhitda ishlamaydi. Buning uchun:
+  - Tashqi cron xizmatidan (masalan, GitHub Actions, cron-job.org) foydalaning, yoki
+  - Scheduler'ni alohida doimiy ishlaydigan hostda (Railway, VPS) ishga tushiring.
+- **Fayl tizimi doimiy emas** — `files/downloads/` va SQLite bazasi har bir chaqiruvda yangilanishi mumkin. Yuklangan fayllar va bazani tashqi saqlashga (S3, PostgreSQL) ko'chiring.
+- **Cold start** — serverless funksiyalar birinchi chaqiruvda sekin ishga tushishi mumkin.
