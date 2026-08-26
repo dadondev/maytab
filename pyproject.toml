@@ -1,0 +1,14 @@
+[project]
+name = "maytab"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aiogram>=3.30.0",
+    "dotenv>=0.9.9",
+    "openpyexcel>=2.5.14",
+    "openpyxl>=3.1.5",
+    "phonenumbers>=9.0.36",
+    "sqlalchemy>=2.0.51",
+]
