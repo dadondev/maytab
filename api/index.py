@@ -15,13 +15,19 @@ import time (which would surface as FUNCTION_INVOCATION_FAILED). Instead, the
 error is logged and a readable response is returned.
 """
 
+import os
+
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import FileResponse
 
 from config.utils import (
     WEBHOOK_DOMAIN,
     WEBHOOK_PATH,
     WEBHOOK_SECRET,
 )
+
+# Path to the landing page (project root / index.html).
+_INDEX_HTML = os.path.join(os.path.dirname(os.path.dirname(__file__)), "index.html")
 
 app = FastAPI(title="Maytab Telegram Bot Webhook")
 
@@ -88,11 +94,11 @@ async def webhook(
 
 
 @app.get("/")
-async def root() -> dict:
-    """Health check that also reports whether the bot loaded."""
-    try:
-        _load_bot()
-        bot_status = "ok"
-    except Exception as exc:
-        bot_status = f"error: {exc!r}"
-    return {"status": "ok", "bot": bot_status, "webhook_path": WEBHOOK_PATH}
+async def root() -> Response:
+    """Serve the landing page (index.html)."""
+    if os.path.exists(_INDEX_HTML):
+        return FileResponse(_INDEX_HTML, media_type="text/html")
+    return Response(
+        content='{"status": "ok", "bot": "maytab"}',
+        media_type="application/json",
+    )
