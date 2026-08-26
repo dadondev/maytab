@@ -337,12 +337,31 @@ async def toggle_setting_handler(callback_query: CallbackQuery):
 async def start_bot():
     """Start the bot via polling (default mode)."""
     setup()
+    await notify_owner_started()
     await dp.start_polling(bot)
 
 
 def setup_bot():
     """Register all routers on the dispatcher. Used by both polling and webhook."""
     setup()
+
+
+async def notify_owner_started():
+    """Send a startup notification to the owner (from .env).
+
+    Lets the owner know the bot is running. Safe to call even if the owner
+    hasn't started a chat with the bot yet (the send is wrapped in try/except).
+    """
+    if not OWNER_CHAT_ID:
+        return
+    try:
+        await bot.send_message(
+            chat_id=int(OWNER_CHAT_ID),
+            text="✅ Bot ishga tushdi va ishlamoqda!",
+        )
+    except Exception:
+        # Owner may not have started the bot yet — ignore silently.
+        pass
 
 
 def setup():

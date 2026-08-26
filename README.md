@@ -228,7 +228,7 @@ WEBHOOK_PATH=/webhook
 WEBHOOK_SECRET=your_secret_token
 ```
 
-> ⚠️ **Muhim**: Vercel'da `DB_URL` sifatida `sqlite:///database.db` ishlatilsa, ma'lumotlar bazasi **har bir serverless funksiya chaqiruvida o'chib ketishi mumkin** (fayl tizimi doimiy emas). Doimiy ma'lumotlar uchun PostgreSQL kabi tashqi bazani ishlating, masalan:
+> ⚠️ **Muhim**: Vercel'da fayl tizimi **faqat o'qish uchun** (read-only), faqat `/tmp` papkasiga yozish mumkin. `db/engine.py` Vercel'da ishlaganda SQLite faylini avtomatik `/tmp` papkasiga yo'naltiradi, shunda funksiya ishga tushadi. Lekin `/tmp` **ephemeral** — har bir chaqiruvda ma'lumotlar o'chib ketishi mumkin. Doimiy ma'lumotlar uchun PostgreSQL kabi tashqi bazani ishlating, masalan:
 > ```
 > DB_URL=postgresql://user:password@host:5432/dbname
 > ```
@@ -248,5 +248,5 @@ Ilova birinchi marta ishga tushganda `bot.set_webhook()` avtomatik chaqiriladi v
 - **Scheduler ishlamaydi** — `services/scheduler.py` (05:00/08:00/16:00 yuborishlar va vazifalarni bajarish) serverless muhitda ishlamaydi. Buning uchun:
   - Tashqi cron xizmatidan (masalan, GitHub Actions, cron-job.org) foydalaning, yoki
   - Scheduler'ni alohida doimiy ishlaydigan hostda (Railway, VPS) ishga tushiring.
-- **Fayl tizimi doimiy emas** — `files/downloads/` va SQLite bazasi har bir chaqiruvda yangilanishi mumkin. Yuklangan fayllar va bazani tashqi saqlashga (S3, PostgreSQL) ko'chiring.
+- **Fayl tizimi doimiy emas** — `files/downloads/` va SQLite bazasi (`/tmp` da) har bir chaqiruvda yangilanishi mumkin. Yuklangan fayllar va bazani tashqi saqlashga (S3, PostgreSQL) ko'chiring.
 - **Cold start** — serverless funksiyalar birinchi chaqiruvda sekin ishga tushishi mumkin.

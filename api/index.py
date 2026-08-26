@@ -12,7 +12,7 @@ hitting a protected endpoint) or run on a separate always-on host.
 
 from fastapi import FastAPI, Request, Response, Header
 
-from bot.bot import dp, bot, setup
+from bot.bot import dp, bot, setup, notify_owner_started
 from config.utils import (
     WEBHOOK_DOMAIN,
     WEBHOOK_PATH,
@@ -24,12 +24,26 @@ app = FastAPI(title="Maytab Telegram Bot Webhook")
 
 @app.on_event("startup")
 async def on_startup() -> None:
-    """Register routers and set the Telegram webhook on cold start."""
-    setup()
-    await bot.set_webhook(
-        f"{WEBHOOK_DOMAIN}{WEBHOOK_PATH}",
-        secret_token=WEBHOOK_SECRET or None,
-    )
+    """Register routers, set the Telegram webhook, and notify the owner.
+
+    Errors are caught so a DB/filesystem problem doesn't crash the serverless
+    function (which would surface as FUNCTION_INVOCATION_FAILED).
+    """
+    try:
+        setup()
+    except Exception as exc:
+        print(f"[startup] setup() failed: {exc!r}")
+    try:
+        await bot.set_webhook(
+            f"{WEBHOOK_DOMAIN}{WEBHOOK_PATH}",
+            secret_token=WEBHOOK_SECRET or None,
+        )
+    except Exception as exc:
+        print(f"[startup] set_webhook failed: {exc!r}")
+    try:
+        await notify_owner_started()
+    except Exception as exc:
+        print(f"[startup] notify_owner_started failed: {exc!r}")
 
 
 @app.post(WEBHOOK_PATH)
