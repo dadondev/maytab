@@ -15,6 +15,14 @@ from config.utils import (
 app = web.Application()
 
 
+async def _healthcheck(request):
+    """Simple health check so Railway knows the app is alive."""
+    return web.json_response({"status": "ok", "bot": "maytab"})
+
+
+app.router.add_get("/", _healthcheck)
+
+
 async def runner():
     """Start the aiohttp webhook server inside the current event loop.
 

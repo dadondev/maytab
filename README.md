@@ -56,14 +56,12 @@ Maytab — bu **aiogram 3** asosida qurilgan Telegram bot bo'lib, maktab dars ja
 
 ```
 maytab/
-├── main.py                  # Botni ishga tushirish (polling + scheduler)
+├── main.py                  # Botni ishga tushirish (webhook + scheduler)
 ├── pyproject.toml           # Loyiha va bog'liqliklar
 ├── requirements.txt         # Bog'liqliklar ro'yxati
-├── vercel.json              # Vercel konfiguratsiyasi
+├── nixpacks.toml            # Railway build/start konfiguratsiyasi
+├── railway.json             # Railway konfiguratsiyasi
 ├── .env                     # Muhit o'zgaruvchilari (TOKEN, DB_URL, ADMIN_PASSWORD)
-│
-├── api/
-│   └── index.py             # FastAPI webhook ilovasi (Vercel uchun)
 │
 ├── bot/
 │   ├── bot.py               # Asosiy router va start handler
@@ -207,28 +205,31 @@ Agar bot ishlanmasa:
 
 ---
 
-## ☁️ Vercel'ga deploy qilish
+## 🚂 Railway'ga deploy qilish
 
-Vercel Python'ni **serverless ASGI funksiya** sifatida ishga tushiradi — uzoq muddatli jarayon (polling yoki scheduler) ishlamaydi. Shuning uchun Vercel'da bot **webhook** rejimida ishlaydi.
+Railway **doimiy ishlaydigan jarayon** (long-running process) sifatida ishga tushiradi — shuning uchun bot **webhook** rejimida ishlaydi va **scheduler** (rejalashtirilgan yuborishlar) ham ishlaydi.
 
 ### Talab qilinadigan fayllar
-- `api/index.py` — FastAPI webhook ilovasi (Vercel shu faylni ishga tushiradi).
-- `vercel.json` — Vercel konfiguratsiyasi.
-- `requirements.txt` — `fastapi` va `uvicorn` qo'shilgan.
+- `nixpacks.toml` — build va start buyrug'i (`python main.py`).
+- `railway.json` — Railway konfiguratsiyasi (healthcheck va restart).
+- `services/webhook_server.py` — aiohttp webhook serveri.
+- `requirements.txt` — barcha bog'liqliklar.
 
-### 1. Muhit o'zgaruvchilari (Vercel dashboard → Settings → Environment Variables)
+### 1. Muhit o'zgaruvchilari (Railway dashboard → Variables)
 ```env
 TOKEN=YOUR_BOT_TOKEN
 DB_URL="sqlite:///database.db"
 ADMIN_PASSWORD="secret_admin_password"
 OWNER_CHAT_ID=123456789
 WEBHOOK_USE=1
-WEBHOOK_DOMAIN=https://your-app.vercel.app
+WEBHOOK_DOMAIN=https://your-app.up.railway.app
 WEBHOOK_PATH=/webhook
 WEBHOOK_SECRET=your_secret_token
 ```
 
-> ⚠️ **Muhim**: Vercel'da fayl tizimi **faqat o'qish uchun** (read-only), faqat `/tmp` papkasiga yozish mumkin. `db/engine.py` Vercel'da ishlaganda SQLite faylini avtomatik `/tmp` papkasiga yo'naltiradi, shunda funksiya ishga tushadi. Lekin `/tmp` **ephemeral** — har bir chaqiruvda ma'lumotlar o'chib ketishi mumkin. Doimiy ma'lumotlar uchun PostgreSQL kabi tashqi bazani ishlating, masalan:
+> 💡 **PORT**: Railway `PORT` muhit o'zgaruvchisini avtomatik qo'shadi. `config/utils.py` `WEBHOOK_PORT` bo'lmasa `PORT` ga tayanadi, shuning uchun portni qo'lda sozlash shart emas.
+
+> ⚠️ **Ma'lumotlar bazasi**: SQLite (`sqlite:///database.db`) Railway'da ishlaydi, lekin fayl tizimi **doimiy emas** — redeploy yoki restartda ma'lumotlar o'chib ketishi mumkin. Doimiy ma'lumotlar uchun Railway'da **PostgreSQL** qo'shing va `DB_URL` ni unga yo'naltiring:
 > ```
 > DB_URL=postgresql://user:password@host:5432/dbname
 > ```
@@ -237,18 +238,16 @@ WEBHOOK_SECRET=your_secret_token
 
 ### 2. Deploy
 ```bash
-# Vercel CLI orqali
-vercel
+# Railway CLI orqali
+railway up
 
-# yoki GitHub reponi Vercel'ga ulang
+# yoki GitHub reponi Railway'ga ulang
 ```
 
 ### 3. Webhook'ni sozlash
-Ilova birinchi marta ishga tushganda `bot.set_webhook()` avtomatik chaqiriladi va Telegram webhook'ni `WEBHOOK_DOMAIN + WEBHOOK_PATH` manziliga o'rnatadi.
+Ilova ishga tushganda `bot.set_webhook()` avtomatik chaqiriladi va Telegram webhook'ni `WEBHOOK_DOMAIN + WEBHOOK_PATH` manziliga o'rnatadi.
 
-### ⚠️ Vercel cheklovlari
-- **Scheduler ishlamaydi** — `services/scheduler.py` (05:00/08:00/16:00 yuborishlar va vazifalarni bajarish) serverless muhitda ishlamaydi. Buning uchun:
-  - Tashqi cron xizmatidan (masalan, GitHub Actions, cron-job.org) foydalaning, yoki
-  - Scheduler'ni alohida doimiy ishlaydigan hostda (Railway, VPS) ishga tushiring.
-- **Fayl tizimi doimiy emas** — `files/downloads/` va SQLite bazasi (`/tmp` da) har bir chaqiruvda yangilanishi mumkin. Yuklangan fayllar va bazani tashqi saqlashga (S3, PostgreSQL) ko'chiring.
-- **Cold start** — serverless funksiyalar birinchi chaqiruvda sekin ishga tushishi mumkin.
+### ✅ Railway afzalliklari
+- **Scheduler ishlaydi** — `services/scheduler.py` (05:00/08:00/16:00 yuborishlar va vazifalarni bajarish) doimiy jarayon sifatida ishlaydi.
+- **Healthcheck** — `/` manzili `{"status": "ok"}` qaytaradi, Railway app sog'lomligini tekshiradi.
+- **Fayl tizimi** — SQLite va `files/downloads/` ishlaydi (lekin doimiy emas).
