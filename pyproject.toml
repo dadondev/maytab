@@ -11,6 +11,7 @@ dependencies = [
     "openpyexcel>=2.5.14",
     "openpyxl>=3.1.5",
     "phonenumbers>=9.0.36",
+    "psycopg2-binary>=2.9.9",
     "sqlalchemy>=2.0.51",
     "uvicorn>=0.30.0",
 ]

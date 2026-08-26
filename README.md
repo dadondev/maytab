@@ -232,6 +232,8 @@ WEBHOOK_SECRET=your_secret_token
 > ```
 > DB_URL=postgresql://user:password@host:5432/dbname
 > ```
+>
+> PostgreSQL ishlatganda `psycopg2-binary` paketi kerak (u `requirements.txt` ga qo'shilgan).
 
 ### 2. Deploy
 ```bash
