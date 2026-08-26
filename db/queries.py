@@ -26,9 +26,9 @@ def create_user(chat_id: int, data: dict[str, Any]):
         return user
 
 
-def create_role(user_id: int):
+def create_role(user_id: int, role_name: str = "user"):
     with Session(engine) as session:
-        role = Role(role="user", user_id=user_id)
+        role = Role(role=role_name, user_id=user_id)
         session.add(role)
         session.commit()
         return role
@@ -350,6 +350,11 @@ def set_user_role(chat_id: int, role_name: str) -> bool:
             role.role = role_name
         session.commit()
         return True
+
+
+def ensure_admin(chat_id: int) -> bool:
+    """Promote an existing user to admin. Returns True if the user exists."""
+    return set_user_role(chat_id, "admin")
 
 
 def delete_user(user_id: int) -> bool:

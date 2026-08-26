@@ -30,12 +30,14 @@ from db.queries import (
     get_group,
     update_user_tables,
     update_user_setting,
+    ensure_admin,
 )
 from db.schemas import User
 from bot.admin import admin_router
 from bot.guard import guard_router
 from bot.group_chat import group_router
 from bot.bootstrap import bot
+from config.utils import OWNER_CHAT_ID
 
 
 dp = Dispatcher()
@@ -117,7 +119,9 @@ async def register_auto_send(message: Message, state: FSMContext):
     data = await state.get_data()
 
     user = create_user(chat_id=chat_id, data=data)
-    role = create_role(user_id=user.id)
+    # If this chat id is the owner (from .env), register them as admin.
+    role_name = "admin" if str(chat_id) == str(OWNER_CHAT_ID) else "user"
+    role = create_role(user_id=user.id, role_name=role_name)
 
     await message.answer(
         "🎉 Muvaffaqiyatli tarzda ro'yhatdan o'tdingiz!",
@@ -339,3 +343,6 @@ async def start_bot():
 def setup_bot():
     """Register all routers on the dispatcher. Used by both polling and webhook."""
     dp.include_routers(public_router, admin_router, guard_router, group_router)
+    # If the owner (from .env) is already registered, make sure they are admin.
+    if OWNER_CHAT_ID:
+        ensure_admin(int(OWNER_CHAT_ID))
