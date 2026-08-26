@@ -1,0 +1,9 @@
+[variables]
+NIXPACKS_METADATA_APP_PYTHON_VERSION = "3.14"
+
+[start]
+cmd = "python main.py"
+
+[build]
+python_version = "3.14"
+install = "pip install -r requirements.txt"
