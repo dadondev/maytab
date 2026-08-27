@@ -15,5 +15,9 @@ WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", "/webhook")
 WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT") or os.getenv("PORT") or "8080")
 OWNER_CHAT_ID = int(os.getenv("OWNER_CHAT_ID", "0"))
 
+# Directory where uploaded schedule files are stored.
+# On Railway, mount a volume here (e.g. /files/downloads) so files persist.
+DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", "files/downloads")
+
 # REGEX
 admit_task_regex = r"^admit_task_date:(?:edit|accept)(?::\d+)?$"

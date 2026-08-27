@@ -1,9 +1,10 @@
-import uuid, asyncio
+import uuid, asyncio, os
 from aiogram.fsm.context import FSMContext
 
 from bot.bootstrap import bot
 from excel.get_data_from_file import get_data
 from keyboards.admit_save_file import survey_save_file_markup
+from config.utils import DOWNLOAD_DIR
 
 
 async def save_file_handler(file_id: str, chat_id: int, message_id: int, state: FSMContext):
@@ -17,8 +18,11 @@ async def save_file_handler(file_id: str, chat_id: int, message_id: int, state: 
         )
         return
 
+    # Ensure the download directory exists (works with Railway volumes too).
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
     file_name = uuid.uuid4()
-    file_path = f"files/downloads/{file_name}.xlsx"
+    file_path = os.path.join(DOWNLOAD_DIR, f"{file_name}.xlsx")
     try:
         await bot.download_file(path.file_path, file_path)
     except Exception:
