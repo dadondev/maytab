@@ -6,8 +6,6 @@ load_dotenv()
 TOKEN = os.getenv("TOKEN")
 DB_URL = os.getenv("DB_URL")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
-# Bot owner chat id — automatically made admin on startup.
-OWNER_CHAT_ID = os.getenv("OWNER_CHAT_ID", "")
 
 # Webhook settings (only used if WEBHOOK_USE is truthy)
 WEBHOOK_USE = os.getenv("WEBHOOK_USE", "0") in ("1", "true", "True", "yes")
