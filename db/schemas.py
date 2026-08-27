@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import declarative_base, relationship
 from db.engine import engine
 
@@ -10,8 +10,8 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
-    # Changed to BigInteger to prevent overflow with large Telegram/messaging IDs
-    chat_id = Column(Integer, unique=True)
+    # BigInteger to prevent overflow with large Telegram/messaging IDs
+    chat_id = Column(BigInteger, unique=True)
     phone_number = Column(String, nullable=True)
     auto_send = Column(Boolean, default=False)
     sms_service = Column(Boolean, default=False)
@@ -68,7 +68,7 @@ class GroupChat(Base):
     __tablename__ = "group_chats"
 
     id = Column(Integer, primary_key=True)
-    chat_id = Column(Integer, unique=True)
+    chat_id = Column(BigInteger, unique=True)
     group_id = Column(Integer, ForeignKey("groups.id"))
     title = Column(String, nullable=True)
 
@@ -99,4 +99,36 @@ def _add_missing_columns():
         with engine.begin() as conn:
             conn.execute(
                 sa.text("ALTER TABLE tasks ADD COLUMN status VARCHAR DEFAULT 'pending'")
+            )
+
+    # Migrate chat_id columns to BIGINT so large Telegram IDs don't overflow.
+    _ensure_bigint_column("users", "chat_id")
+    _ensure_bigint_column("group_chats", "chat_id")
+
+
+def _ensure_bigint_column(table: str, column: str) -> None:
+    """Alter an existing column to BIGINT if it is currently INTEGER.
+
+    Needed because Telegram chat IDs can exceed PostgreSQL's 32-bit INTEGER
+    range (max ~2.1 billion), causing NumericValueOutOfRange on insert.
+    """
+    import sqlalchemy as sa
+    from sqlalchemy import inspect
+
+    try:
+        inspector = inspect(engine)
+        cols = {c["name"]: c for c in inspector.get_columns(table)}
+    except Exception:
+        return
+
+    col = cols.get(column)
+    if col is None:
+        return
+
+    # Only migrate if it's currently a 32-bit integer type.
+    type_name = str(col["type"]).lower()
+    if type_name in ("integer", "int", "int4"):
+        with engine.begin() as conn:
+            conn.execute(
+                sa.text(f'ALTER TABLE "{table}" ALTER COLUMN "{column}" TYPE BIGINT')
             )
