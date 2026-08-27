@@ -27,6 +27,11 @@ DAY_NAMES = {
 }
 
 
+def _today_day_key() -> str:
+    """Return the lowercase English day name for today."""
+    return datetime.now().strftime("%A").lower()
+
+
 def _tomorrow_day_key() -> str:
     """Return the lowercase English day name for tomorrow."""
     return (datetime.now() + timedelta(days=1)).strftime("%A").lower()
@@ -46,6 +51,47 @@ def _format_class_schedule(group) -> str:
     return "\n".join(lines)
 
 
+def _format_grouped_schedule(title: str, groups: list, day_key: str) -> str | None:
+    """Group classes by lesson count, then by grade, and format the message.
+
+    Class names look like "1-A", "10-B", etc. Within each lesson-count group,
+    classes are shown per grade as "1-sinflar: A, B".
+    """
+    import re
+
+    # Group classes by how many lessons they have on the given day.
+    by_count = {}
+    for group in groups:
+        subjects = group.table.get(day_key, []) if group.table else []
+        if subjects:
+            by_count.setdefault(len(subjects), []).append(group.name)
+
+    if not by_count:
+        return None
+
+    lines = [f"{title}\n"]
+    for count in sorted(by_count):
+        # Group class names by grade number.
+        by_grade = {}
+        for name in by_count[count]:
+            m = re.match(r"^(\d+)-([A-Za-z]+)$", name)
+            if m:
+                grade_num = int(m.group(1))
+                letter = m.group(2)
+                by_grade.setdefault(grade_num, []).append(letter)
+            else:
+                # Fallback for names that don't match the pattern.
+                by_grade.setdefault(name, []).append("")
+
+        lines.append(f"{count}-soat dars borlar:")
+        for grade_num in sorted(by_grade):
+            letters = ", ".join(sorted(by_grade[grade_num]))
+            lines.append(f"  {grade_num}-sinflar: {letters}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 @guard_router.message(Command("guard"))
 async def guard_command(message: Message):
     await message.answer(
@@ -60,32 +106,36 @@ async def guard_menu_handler(cb: CallbackQuery):
     )
 
 
+@guard_router.callback_query(F.data == "guard:today")
+async def guard_today_handler(cb: CallbackQuery):
+    """Show today's schedule grouped by lesson count, then by grade."""
+    day_key = _today_day_key()
+    text = _format_grouped_schedule(
+        f"📅 Bugungi ({day_key}) dars jadvali:", get_groups(), day_key
+    )
+    if text is None:
+        await cb.message.edit_text(
+            "Bugungi kun uchun jadvallar topilmadi.",
+            reply_markup=get_guard_menu_markup(),
+        )
+        return
+    await cb.message.edit_text(text, reply_markup=get_guard_menu_markup())
+
+
 @guard_router.callback_query(F.data == "guard:tomorrow")
 async def guard_tomorrow_handler(cb: CallbackQuery):
-    """Show tomorrow's schedule grouped by number of lessons per class."""
+    """Show tomorrow's schedule grouped by lesson count, then by grade."""
     day_key = _tomorrow_day_key()
-    groups = get_groups()
-
-    # Group classes by how many lessons they have tomorrow.
-    by_count = {}
-    for group in groups:
-        subjects = group.table.get(day_key, []) if group.table else []
-        if subjects:
-            by_count.setdefault(len(subjects), []).append(group.name)
-
-    if not by_count:
+    text = _format_grouped_schedule(
+        f"📅 Ertangi ({day_key}) dars jadvali:", get_groups(), day_key
+    )
+    if text is None:
         await cb.message.edit_text(
             "Ertangi kun uchun jadvallar topilmadi.",
             reply_markup=get_guard_menu_markup(),
         )
         return
-
-    lines = [f"📅 Ertangi ({day_key}) dars jadvali:\n"]
-    for count in sorted(by_count, reverse=True):
-        classes = ", ".join(sorted(by_count[count]))
-        lines.append(f"{count}-soat dars borlar:\n{classes}\n")
-
-    await cb.message.edit_text("\n".join(lines), reply_markup=get_guard_menu_markup())
+    await cb.message.edit_text(text, reply_markup=get_guard_menu_markup())
 
 
 @guard_router.callback_query(F.data == "guard:grades")

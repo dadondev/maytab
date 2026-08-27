@@ -6,6 +6,7 @@ from db.queries import get_grades, get_groups
 
 def get_guard_menu_markup():
     markup = InlineKeyboardBuilder()
+    markup.button(text="📅 Bugungi jadval", callback_data="guard:today")
     markup.button(text="📅 Ertangi jadval", callback_data="guard:tomorrow")
     markup.button(text="📋 Sinf jadvalni ko'rish", callback_data="guard:grades")
     markup.adjust(2)
