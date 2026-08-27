@@ -7,7 +7,6 @@ from bot.bot import dp, bot, setup, notify_owner_started
 from config.utils import (
     WEBHOOK_DOMAIN,
     WEBHOOK_PATH,
-    WEBHOOK_SECRET,
 )
 
 # FastAPI application — this is the ASGI app that uvicorn loads (uvicorn main:app).
@@ -21,10 +20,7 @@ async def on_startup() -> None:
 
     # Set the Telegram webhook so updates are delivered to this server.
     try:
-        await bot.set_webhook(
-            f"{WEBHOOK_DOMAIN}{WEBHOOK_PATH}",
-            secret_token=WEBHOOK_SECRET or None,
-        )
+        await bot.set_webhook(f"{WEBHOOK_DOMAIN}{WEBHOOK_PATH}")
     except Exception as exc:
         print(f"[startup] set_webhook failed: {exc!r}")
 
@@ -41,14 +37,8 @@ async def on_startup() -> None:
 
 
 @app.post(WEBHOOK_PATH)
-async def webhook(
-    request: Request,
-    x_telegram_bot_api_secret_token: str | None = None,
-) -> Response:
+async def webhook(request: Request) -> Response:
     """Receive a Telegram update and process it with the dispatcher."""
-    if WEBHOOK_SECRET and x_telegram_bot_api_secret_token != WEBHOOK_SECRET:
-        return Response(status_code=403)
-
     from aiogram.types import Update
 
     update = Update.model_validate(await request.json())
