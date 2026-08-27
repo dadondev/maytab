@@ -18,7 +18,7 @@ WEBHOOK_SECRET = "".join(
 )
 # Railway/other PaaS inject the TCP port via the PORT env var — fall back to it.
 WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT") or os.getenv("PORT") or "8080")
-
+OWNER_CHAT_ID = int(os.getenv("OWNER_CHAT_ID", "0"))
 
 # REGEX
 admit_task_regex = r"^admit_task_date:(?:edit|accept)(?::\d+)?$"

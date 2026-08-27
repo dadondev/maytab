@@ -36,6 +36,7 @@ from bot.admin import admin_router
 from bot.guard import guard_router
 from bot.group_chat import group_router
 from bot.bootstrap import bot
+from config.utils import OWNER_CHAT_ID
 
 
 dp = Dispatcher()
