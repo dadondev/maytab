@@ -1,6 +1,14 @@
 import asyncio
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+# Uzbekistan is UTC+5 (no DST), so a fixed offset is correct.
+UZ_TZ = timezone(timedelta(hours=5))
+
+
+def _now_uz() -> datetime:
+    """Return the current time in Uzbekistan (UTC+5)."""
+    return datetime.now(UZ_TZ)
 
 from bot.bootstrap import bot
 from db.queries import (
@@ -27,7 +35,7 @@ def _format_table(group, day_key: str | None = None) -> str:
         "monday": "Dushanba", "tuesday": "Seshanba", "wednesday": "Chorshanba",
         "thursday": "Payshanba", "friday": "Juma", "saturday": "Shanba",
     }
-    today = datetime.now().strftime("%A").lower()
+    today = _now_uz().strftime("%A").lower()
     lines = [f"📅 {group.name} guruhi jadvali"]
     for day, name in day_names.items():
         subjects = group.table.get(day, []) if group.table else []
@@ -64,7 +72,7 @@ async def send_daily_timetables():
 
 async def send_tomorrow_to_groups():
     """Send tomorrow's schedule to every bound group chat."""
-    day_key = (datetime.now() + timedelta(days=1)).strftime("%A").lower()
+    day_key = (_now_uz() + timedelta(days=1)).strftime("%A").lower()
     for gc in get_all_group_chats():
         group = get_group(gc.group_id)
         if group is None or not group.table:
@@ -87,7 +95,7 @@ async def send_tomorrow_to_groups():
 
 def _format_tomorrow_for_user(group) -> str:
     """Format tomorrow's schedule for a single class."""
-    day_key = (datetime.now() + timedelta(days=1)).strftime("%A").lower()
+    day_key = (_now_uz() + timedelta(days=1)).strftime("%A").lower()
     day_names = {
         "monday": "Dushanba", "tuesday": "Seshanba", "wednesday": "Chorshanba",
         "thursday": "Payshanba", "friday": "Juma", "saturday": "Shanba",
@@ -107,7 +115,7 @@ async def notify_users_schedule_updated():
     If the current time is after 16:00, send tomorrow's schedule instead of the
     full weekly one.
     """
-    send_tomorrow = datetime.now().hour >= 16
+    send_tomorrow = _now_uz().hour >= 18
     users = get_all_users()
     for user in users:
         tables = user.tables or []
@@ -138,7 +146,7 @@ async def notify_users_schedule_updated():
 
 async def send_today_to_groups():
     """Send today's schedule to every bound group chat."""
-    day_key = datetime.now().strftime("%A").lower()
+    day_key = _now_uz().strftime("%A").lower()
     for group_chat in get_all_group_chats():
         group = get_group(group_chat.group_id)
         if group is None or not group.table:
@@ -251,15 +259,14 @@ async def execute_due_tasks():
 
 
 async def scheduler_loop():
-    """Run the scheduler forever, checking every minute.
+    """Run the scheduler forever, checking every minute (Uzbekistan time, UTC+5).
 
-    - 05:00  -> send today's schedule to group chats
-    - 08:00  -> send today's schedule to users with auto_send
-    - 16:00  -> send tomorrow's schedule to group chats
+    - 05:00  -> send today's schedule to group chats and to users with auto_send
+    - 18:00  -> send tomorrow's schedule to group chats
     """
     last_run = {}  # track which hour-tasks already ran today
     while True:
-        now = datetime.now()
+        now = _now_uz()
         hour = now.hour
 
         try:
@@ -278,13 +285,11 @@ async def scheduler_loop():
 
             if hour == 5 and last_run.get(5) != now.date():
                 await send_today_to_groups()
-                last_run[5] = now.date()
-            elif hour == 8 and last_run.get(8) != now.date():
                 await send_daily_timetables()
-                last_run[8] = now.date()
-            elif hour == 16 and last_run.get(16) != now.date():
+                last_run[5] = now.date()
+            elif hour == 18 and last_run.get(18) != now.date():
                 await send_tomorrow_to_groups()
-                last_run[16] = now.date()
+                last_run[18] = now.date()
         except Exception:
             # Keep the loop alive even if a send fails.
             pass
