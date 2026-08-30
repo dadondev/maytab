@@ -125,7 +125,24 @@ async def register_auto_send(message: Message, state: FSMContext):
         reply_markup=ReplyKeyboardRemove(),
     )
 
+    await notify_admins_new_user(user)
+
     await start_cmd_bot(message, True, user)
+
+
+async def notify_admins_new_user(user: User) -> None:
+    """Notify the owner when a new user has joined/registered the bot."""
+    text = (
+        f"🆕 Yangi foydalanuvchi botga qo'shildi!\n\n"
+        f"👤 Ism: {user.name}\n"
+        f"📱 Telefon: {user.phone_number}\n"
+        f"🆔 ID: {user.chat_id}"
+    )
+    try:
+        await bot.send_message(chat_id=OWNER_CHAT_ID, text=text)
+    except Exception:
+        # Skip if the owner can't be reached (blocked bot, etc.)
+        pass
 
 
 # TODO: at the end of register
