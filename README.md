@@ -47,7 +47,6 @@ Maytab — bu **aiogram 3** asosida qurilgan Telegram bot bo'lib, maktab dars ja
 | **SQLAlchemy 2** | Ma'lumotlar bazasi (ORM) |
 | **SQLite** | Ma'lumotlar bazasi |
 | **openpyxl** | Excel fayllarni o'qish |
-| **phonenumbers** | Telefon raqamni tekshirish |
 | **python-dotenv** | Muhit o'zgaruvchilarini yuklash |
 
 ---
@@ -72,7 +71,6 @@ maytab/
 │
 ├── config/
 │   ├── utils.py             # TOKEN, DB_URL, ADMIN_PASSWORD va regexlar
-│   └── valid_phone.py       # Telefon raqamni tekshirish
 │
 ├── db/
 │   ├── engine.py            # SQLAlchemy engine
