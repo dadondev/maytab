@@ -1,5 +1,6 @@
 
 from datetime import date, datetime
+from math import atan2, cos, radians, sin, sqrt
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -83,6 +84,74 @@ def get_schools(region: str | None = None, province: str | None = None) -> list[
 def get_school_by_id(school_id: int) -> School | None:
     with Session(engine) as session:
         return session.get(School, school_id)
+
+
+def get_school_regions() -> list[str]:
+    with Session(engine) as session:
+        rows = session.scalars(select(School.region).distinct().order_by(School.region)).all()
+        return list(rows)
+
+
+def get_school_provinces(region: str | None = None) -> list[str]:
+    with Session(engine) as session:
+        statement = select(School.province).distinct().order_by(School.province)
+        if region is not None:
+            statement = statement.where(School.region == region)
+        rows = session.scalars(statement).all()
+        return list(rows)
+
+
+def find_nearby_schools(latitude: float, longitude: float, radius_km: float = 25.0) -> list[School]:
+    with Session(engine) as session:
+        schools = list(session.scalars(select(School)))
+
+    def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        earth_radius_km = 6371.0
+        phi1, phi2 = radians(lat1), radians(lat2)
+        dphi = radians(lat2 - lat1)
+        dlambda = radians(lon2 - lon1)
+        a = sin(dphi / 2) ** 2 + cos(phi1) * cos(phi2) * sin(dlambda / 2) ** 2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return earth_radius_km * c
+
+    nearby = []
+    for school in schools:
+        if school.latitude is None or school.longitude is None:
+            continue
+        distance = haversine_km(latitude, longitude, float(school.latitude), float(school.longitude))
+        if distance <= radius_km:
+            nearby.append((distance, school))
+
+    nearby.sort(key=lambda item: item[0])
+    return [school for _, school in nearby]
+
+
+def seed_default_schools() -> list[School]:
+    with Session(engine) as session:
+        created: list[School] = []
+        for item in DEFAULT_SCHOOLS:
+            existing = session.scalar(
+                select(School).where(
+                    School.region == item["region"],
+                    School.province == item["province"],
+                    School.name == item["name"],
+                )
+            )
+            if existing is not None:
+                continue
+            school = School(
+                region=item["region"],
+                province=item["province"],
+                name=item["name"],
+                latitude=float(item.get("latitude") or 0.0),
+                longitude=float(item.get("longitude") or 0.0),
+            )
+            session.add(school)
+            created.append(school)
+        session.commit()
+        for school in created:
+            session.refresh(school)
+        return created
 
 
 def update_user_school(chat_id: int, school_id: int | None) -> None:
