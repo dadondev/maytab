@@ -4,7 +4,6 @@ from aiogram import Dispatcher, F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 from middlewares.existUserMiddleware import existUserMiddleware
-from keyboards.register import register_markup
 from keyboards.menu import menu_markup
 from keyboards.my_tables import get_my_tables_markup
 from keyboards.group_chat import (
@@ -19,9 +18,7 @@ from keyboards.user_tables import (
 )
 from keyboards.settings import get_settings_markup
 from db.queries import (
-    create_user,
     get_user,
-    create_role,
     get_grades,
     get_groups,
     get_group,
@@ -46,21 +43,14 @@ public_router.message.middleware(existUserMiddleware())
 @public_router.message(CommandStart())
 async def start_cmd_bot(message: Message, user_exist: bool, user: User | None):
     if message.chat.type == "private":
-        if user_exist and bool(user):
-            display_name = (
-                message.from_user.first_name
-                or message.from_user.username
-                or "Foydalanuvchi"
-            )
-            await message.answer(
-                text=f"👋 Assalomu alaykum, {display_name}! Nima qilmoqchisiz?",
-                reply_markup=menu_markup,
-            )
-            return
-
+        display_name = (
+            message.from_user.first_name
+            or message.from_user.username
+            or "Foydalanuvchi"
+        )
         await message.answer(
-            text="👋 Assalomu alaykum! Botdan foydalanishdan avval ro'yhatdan o'tishingiz lozim. \n\n✅ Ro'yhatdan o'tish uchun pastdagi tugmani bosing!",
-            reply_markup=register_markup,
+            text=f"👋 Assalomu alaykum, {display_name}! Nima qilmoqchisiz?",
+            reply_markup=menu_markup,
         )
         return
 
@@ -87,41 +77,6 @@ async def start_cmd_bot(message: Message, user_exist: bool, user: User | None):
         text="👋 Assalomu alaykum! Bu guruhda hali biriktirilgan sinf jadvali yo'q. Iltimos, sinfni tanlang va guruh jadvalini o'rnating.",
         reply_markup=get_group_grades_markup(),
     )
-
-
-@public_router.callback_query(F.data == "register")
-async def register(callback_query: CallbackQuery):
-    chat_id = callback_query.from_user.id
-
-    user = create_user(chat_id=chat_id, data={"auto_send": False, "sms_service": False})
-    create_role(user_id=user.id)
-
-    await callback_query.message.edit_text(
-        "🎉 Muvaffaqiyatli tarzda ro'yhatdan o'tdingiz!"
-    )
-
-    await notify_admins_new_user(user)
-
-    await callback_query.message.answer(
-        "👋 Assalomu alaykum! Nima qilmoqchisiz?",
-        reply_markup=menu_markup,
-    )
-
-
-async def notify_admins_new_user(user: User) -> None:
-    """Notify the owner when a new user has joined/registered the bot."""
-    text = (
-        f"🆕 Yangi foydalanuvchi botga qo'shildi!\n\n"
-        f"🆔 ID: {user.chat_id}"
-    )
-    try:
-        await bot.send_message(chat_id=OWNER_CHAT_ID, text=text)
-    except Exception:
-        # Skip if the owner can't be reached (blocked bot, etc.)
-        pass
-
-
-# TODO: at the end of register
 
 
 # TODO: at the start of my tables
