@@ -4,10 +4,7 @@ from aiogram import Dispatcher, F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 from middlewares.existUserMiddleware import existUserMiddleware
-from keyboards.register import (
-    register_markup,
-    register_auto_send_markup,
-)
+from keyboards.register import register_markup
 from keyboards.menu import menu_markup
 from keyboards.my_tables import get_my_tables_markup
 from keyboards.group_chat import (
@@ -21,9 +18,6 @@ from keyboards.user_tables import (
     get_table_days_markup,
 )
 from keyboards.settings import get_settings_markup
-from aiogram.fsm.context import FSMContext
-from aiogram.types import ReplyKeyboardRemove
-from states.register_state import RegisterState
 from db.queries import (
     create_user,
     get_user,
@@ -96,42 +90,22 @@ async def start_cmd_bot(message: Message, user_exist: bool, user: User | None):
 
 
 @public_router.callback_query(F.data == "register")
-async def register(callback_query: CallbackQuery, state: FSMContext):
-    await state.set_state(RegisterState.auto_send)
+async def register(callback_query: CallbackQuery):
+    chat_id = callback_query.from_user.id
+
+    user = create_user(chat_id=chat_id, data={"auto_send": False, "sms_service": False})
+    create_role(user_id=user.id)
+
     await callback_query.message.edit_text(
-        "🔄 Avtomatik yuborish xizmatidan foydalanasizmi?\n\n📌 Sizga har kuni siz tanlagan dars jadvallar yuboriladi. Bot bir kun oldin va kunning boshida jadvalingizni yuboradi.",
-        reply_markup=register_auto_send_markup,
-    )
-
-
-@public_router.message(RegisterState.auto_send)
-async def register_auto_send(message: Message, state: FSMContext):
-
-    auto_send = message.text.lower()
-
-    await state.update_data(auto_send=True if "ha" in auto_send else False)
-    await state.update_data(sms_service=False)
-
-    chat_id = message.from_user.id
-
-    data = await state.get_data()
-
-    data = {
-        **data,
-        "auto_send": True if "ha" in (message.text or "").lower() else False,
-    }
-
-    user = create_user(chat_id=chat_id, data=data)
-    role = create_role(user_id=user.id)
-
-    await message.answer(
-        "🎉 Muvaffaqiyatli tarzda ro'yhatdan o'tdingiz!",
-        reply_markup=ReplyKeyboardRemove(),
+        "🎉 Muvaffaqiyatli tarzda ro'yhatdan o'tdingiz!"
     )
 
     await notify_admins_new_user(user)
 
-    await start_cmd_bot(message, True, user)
+    await callback_query.message.answer(
+        "👋 Assalomu alaykum! Nima qilmoqchisiz?",
+        reply_markup=menu_markup,
+    )
 
 
 async def notify_admins_new_user(user: User) -> None:
