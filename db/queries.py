@@ -3,11 +3,20 @@ from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from db.schemas import User, Role, Task, Group, Grade, GroupChat
+from db.schemas import User, Role, Task, Group, Grade, GroupChat, School
 from db.engine import engine
 from typing import Any
 
 from excel.get_data_from_file import get_data
+
+DEFAULT_SCHOOLS = [
+    {"region": "Toshkent", "province": "Toshkent shahri", "name": "Toshkent 1-maktab", "latitude": 41.3111, "longitude": 69.2401},
+    {"region": "Toshkent", "province": "Toshkent shahri", "name": "Toshkent 5-maktab", "latitude": 41.3200, "longitude": 69.2550},
+    {"region": "Toshkent", "province": "Toshkent viloyati", "name": "Chinoz tumani 1-maktab", "latitude": 41.0720, "longitude": 69.4340},
+    {"region": "Samarqand", "province": "Samarqand viloyati", "name": "Samarqand 2-maktab", "latitude": 39.6550, "longitude": 66.9597},
+    {"region": "Farg'ona", "province": "Farg'ona viloyati", "name": "Farg'ona 7-maktab", "latitude": 40.3864, "longitude": 71.7846},
+    {"region": "Namangan", "province": "Namangan viloyati", "name": "Namangan 3-maktab", "latitude": 41.0003, "longitude": 71.6680},
+]
 
 
 def create_user(chat_id: int, data: dict[str, Any]):
@@ -18,6 +27,7 @@ def create_user(chat_id: int, data: dict[str, Any]):
             phone_number=data["phone_number"],
             auto_send=data["auto_send"],
             sms_service=data.get("sms_service", False),
+            school_id=data.get("school_id"),
             tables=[],
         )
         session.add(user)
@@ -60,6 +70,30 @@ def get_groups(grade_id: int | None = None) -> list[Group]:
 def get_group(group_id: int) -> Group | None:
     with Session(engine) as session:
         return session.get(Group, group_id)
+
+
+def get_schools(region: str | None = None, province: str | None = None) -> list[School]:
+    with Session(engine) as session:
+        statement = select(School).order_by(School.name)
+        if region is not None:
+            statement = statement.where(School.region == region)
+        if province is not None:
+            statement = statement.where(School.province == province)
+        return list(session.scalars(statement))
+
+
+def get_school_by_id(school_id: int) -> School | None:
+    with Session(engine) as session:
+        return session.get(School, school_id)
+
+
+def update_user_school(chat_id: int, school_id: int | None) -> None:
+    with Session(engine) as session:
+        user = session.scalar(select(User).where(User.chat_id == chat_id))
+        if user is None:
+            return
+        user.school_id = school_id
+        session.commit()
 
 
 def update_user_tables(chat_id: int, tables: list[int]) -> None:
@@ -318,6 +352,16 @@ def get_all_guards() -> list[User]:
             select(User)
             .join(Role, Role.user_id == User.id)
             .where(Role.role == "guard")
+        )
+        return list(session.scalars(statement))
+
+
+def get_all_school_counselors() -> list[User]:
+    with Session(engine) as session:
+        statement = (
+            select(User)
+            .join(Role, Role.user_id == User.id)
+            .where(Role.role == "school_counselor")
         )
         return list(session.scalars(statement))
 

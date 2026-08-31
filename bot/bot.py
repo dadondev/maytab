@@ -8,6 +8,7 @@ from middlewares.existUserMiddleware import existUserMiddleware
 from keyboards.register import (
     register_markup,
     register_phone_markup,
+    school_selection_markup,
     register_auto_send_markup,
 )
 from keyboards.menu import menu_markup, group_menu_markup
@@ -35,8 +36,15 @@ from db.queries import (
     get_groups,
     get_group,
     get_group_chat,
+    get_school_regions,
+    get_school_provinces,
+    get_schools,
+    get_school_by_id,
+    find_nearby_schools,
+    update_user_school,
     update_user_tables,
     update_user_setting,
+    seed_default_schools,
 )
 from db.schemas import User
 from bot.admin import admin_router
@@ -134,10 +142,110 @@ async def register_phone(message: Message, state: FSMContext):
 
     await state.update_data(phone_number=phone_number)
 
-    await state.set_state(RegisterState.auto_send)
+    seed_default_schools()
+    await state.set_state(RegisterState.school_type)
 
     await message.answer(
-        text="🔄 Avtomatik yuborish xizmatidan foydalanasizmi?\n\n📌 Sizga har kuni siz tanlagan dars jadvallar yuboriladi. Bot bir kun oldin va kunning boshida jadvalingizni yuboradi.",
+        text="🏫 Maktabni tanlash usulini tanlang:\n\n📍 Yaqin maktabni tanlash\n✍️ Qo'lda tanlash\n📍 Mening joylashuvim",
+        reply_markup=school_selection_markup,
+    )
+
+
+@public_router.message(RegisterState.school_type)
+async def register_school_type(message: Message, state: FSMContext):
+    text = (message.text or "").strip()
+
+    if message.location is not None:
+        schools = find_nearby_schools(message.location.latitude, message.location.longitude)
+        if schools:
+            selected = schools[0]
+            await state.update_data(school_id=selected.id)
+            await state.update_data(school_name=selected.name)
+            await state.set_state(RegisterState.auto_send)
+            await message.answer(
+                text=f"✅ Sizga yaqin maktab topildi: {selected.name} ({selected.region}, {selected.province})\n\n🔄 Avtomatik yuborish xizmatidan foydalanasizmi?\n\n📌 Sizga har kuni siz tanlagan dars jadvallar yuboriladi. Bot bir kun oldin va kunning boshida jadvalingizni yuboradi.",
+                reply_markup=register_auto_send_markup,
+            )
+            return
+        await message.answer("😕 Yaqin maktab topilmadi. Iltimos, qo'lda tanlang yoki boshqa joydan yuboring.")
+        return
+
+    if "yaqin" in text.lower() or "Mening joylashuvim" in text:
+        await message.answer(
+            "📍 Iltimos, joylashuvingizni yuboring. Bot yaqinidagi maktabni topadi.",
+            reply_markup=school_selection_markup,
+        )
+        return
+
+    if "qo'lda" in text.lower() or "Qo'lda" in text or "qo'lda" in text:
+        regions = get_school_regions()
+        if not regions:
+            await message.answer("😕 Maktab ma'lumotlari hozircha mavjud emas.")
+            return
+        await state.update_data(school_mode="manual")
+        await state.set_state(RegisterState.region)
+        await message.answer(
+            "🌍 Hududni tanlang:\n" + "\n".join(f"• {r}" for r in regions),
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+
+    await message.answer(
+        "❌ Iltimos, quyidagi variantlardan birini tanlang: 📍 Yaqin maktabni tanlash / ✍️ Qo'lda tanlash / 📍 Mening joylashuvim",
+        reply_markup=school_selection_markup,
+    )
+
+
+@public_router.message(RegisterState.region)
+async def register_region(message: Message, state: FSMContext):
+    region = (message.text or "").strip()
+    regions = get_school_regions()
+    if region not in regions:
+        await message.answer("❌ Noto'g'ri hudud. Quyidagi variantlardan birini tanlang:\n" + "\n".join(f"• {r}" for r in regions))
+        return
+
+    await state.update_data(region=region)
+    provinces = get_school_provinces(region)
+    await state.set_state(RegisterState.province)
+    await message.answer(
+        f"🏙 {region} hududi uchun viloyatni tanlang:\n" + "\n".join(f"• {p}" for p in provinces),
+    )
+
+
+@public_router.message(RegisterState.province)
+async def register_province(message: Message, state: FSMContext):
+    data = await state.get_data()
+    region = data.get("region")
+    province = (message.text or "").strip()
+    provinces = get_school_provinces(region) if region else []
+    if province not in provinces:
+        await message.answer("❌ Noto'g'ri viloyat. Quyidagi variantlardan birini tanlang:\n" + "\n".join(f"• {p}" for p in provinces))
+        return
+
+    await state.update_data(province=province)
+    schools = get_schools(region=region, province=province)
+    await state.set_state(RegisterState.school)
+    await message.answer(
+        f"🏫 {region} / {province} uchun maktabni tanlang:\n" + "\n".join(f"• {s.name}" for s in schools),
+    )
+
+
+@public_router.message(RegisterState.school)
+async def register_school(message: Message, state: FSMContext):
+    data = await state.get_data()
+    region = data.get("region")
+    province = data.get("province")
+    name = (message.text or "").strip()
+    schools = get_schools(region=region, province=province)
+    selected = next((s for s in schools if s.name.lower() == name.lower()), None)
+    if selected is None:
+        await message.answer("❌ Noto'g'ri maktab nomi. Quyidagi variantlardan birini tanlang:\n" + "\n".join(f"• {s.name}" for s in schools))
+        return
+
+    await state.update_data(school_id=selected.id, school_name=selected.name)
+    await state.set_state(RegisterState.auto_send)
+    await message.answer(
+        f"✅ Siz tanlagan maktab: {selected.name} ({selected.region}, {selected.province})\n\n🔄 Avtomatik yuborish xizmatidan foydalanasizmi?\n\n📌 Sizga har kuni siz tanlagan dars jadvallar yuboriladi. Bot bir kun oldin va kunning boshida jadvalingizni yuboradi.",
         reply_markup=register_auto_send_markup,
     )
 
@@ -156,6 +264,10 @@ async def register_auto_send(message: Message, state: FSMContext):
 
     user = create_user(chat_id=chat_id, data=data)
     role = create_role(user_id=user.id)
+    school_id = data.get("school_id")
+    if school_id is not None:
+        update_user_school(chat_id, school_id)
+        user = get_user(chat_id)
 
     await message.answer(
         "🎉 Muvaffaqiyatli tarzda ro'yhatdan o'tdingiz!",
@@ -395,6 +507,16 @@ async def settings_handler(callback_query: CallbackQuery):
     await callback_query.answer()
 
 
+@public_router.callback_query(F.data == "change_school")
+async def change_school_handler(callback_query: CallbackQuery, state: FSMContext):
+    await state.set_state(RegisterState.school_type)
+    await callback_query.message.edit_text(
+        "🏫 Maktabni tanlash usulini tanlang:\n\n📍 Yaqin maktabni tanlash\n✍️ Qo'lda tanlash\n📍 Mening joylashuvim",
+        reply_markup=school_selection_markup,
+    )
+    await callback_query.answer()
+
+
 @public_router.callback_query(F.data.regexp(r"^toggle_setting:auto_send$"))
 async def toggle_setting_handler(callback_query: CallbackQuery):
     setting = callback_query.data.split(":")[1]
@@ -458,6 +580,8 @@ def setup():
     webhook server, and the FastAPI/Vercel entry point.
     """
     from db.schemas import init_db
+    from db.queries import seed_default_schools
 
     init_db()
+    seed_default_schools()
     dp.include_routers(public_router, admin_router, guard_router, group_router)

@@ -4,4 +4,12 @@ register_markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(te
 
 register_phone_markup = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="📱 Telefon raqamingizni yuboring", request_contact=True)]], resize_keyboard=True)
 
+school_selection_markup = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📍 Yaqin maktabni tanlash"), KeyboardButton(text="✍️ Qo'lda tanlash")],
+        [KeyboardButton(text="📍 Mening joylashuvim", request_location=True)],
+    ],
+    resize_keyboard=True,
+)
+
 register_auto_send_markup = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="✅ Ha, avtomatik yuboring ✅"), KeyboardButton(text="❌ Yo'q, avtomatik yubormang ❌")]], resize_keyboard=True)

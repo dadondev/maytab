@@ -25,6 +25,7 @@ from db.queries import (
     create_task,
     upload_table,
     get_all_users,
+    get_user,
     get_user_by_id,
     get_group,
     get_active_tasks,
@@ -34,6 +35,10 @@ from db.queries import (
     finish_task,
     set_user_role,
     delete_user,
+    get_all_schools,
+    create_school,
+    delete_school,
+    get_all_school_counselors,
 )
 from config.utils import admit_task_regex
 
@@ -197,6 +202,64 @@ async def back_admin_menu_handler(cb:CallbackQuery, state:FSMContext):
     await state.clear()
     await cb.message.edit_text("Siz admin menyusidasiz!", reply_markup=admin_menu_markup)
 
+
+@admin_router.callback_query(F.data == "schools")
+async def school_management_handler(cb: CallbackQuery):
+    schools = get_all_schools()
+    if not schools:
+        await cb.message.edit_text(
+            "🏫 Hozircha maktablar mavjud emas.\n\nYangi maktab qo'shish uchun /add_school komandasidan foydalaning.\nFormat: /add_school Toshkent | Toshkent shahri | 1-maktab | 41.3111 | 69.2401",
+            reply_markup=back_admin_menu,
+        )
+        await cb.answer()
+        return
+
+    lines = ["🏫 Maktablar ro'yxati:"]
+    for school in schools:
+        lines.append(f"• {school.region} / {school.province} / {school.name}")
+
+    await cb.message.edit_text("\n".join(lines), reply_markup=back_admin_menu)
+    await cb.answer()
+
+
+@admin_router.message(Command("add_school"))
+async def add_school_command(message: Message):
+    text = (message.text or "").strip()
+    parts = [p.strip() for p in text.split("|")]
+    if len(parts) < 3:
+        await message.answer(
+            "❌ Format xato. To'g'ri format:\n/add_school Toshkent | Toshkent shahri | 1-maktab | 41.3111 | 69.2401",
+        )
+        return
+
+    region = parts[0].replace("/add_school", "").strip()
+    province = parts[1].strip()
+    name = parts[2].strip()
+    latitude = float(parts[3].strip()) if len(parts) > 3 and parts[3].strip() else None
+    longitude = float(parts[4].strip()) if len(parts) > 4 and parts[4].strip() else None
+
+    if not region or not province or not name:
+        await message.answer("❌ Region, province va maktab nomi majburiy.")
+        return
+
+    try:
+        created = create_school(region=region, province=province, name=name, latitude=latitude, longitude=longitude)
+        await message.answer(f"✅ Yangi maktab qo'shildi: {created.region} / {created.province} / {created.name}")
+    except Exception as exc:
+        await message.answer(f"❌ Maktab qo'shishda xatolik: {exc}")
+
+
+@admin_router.callback_query(F.data.regexp(r"^school_delete:\d+$"))
+async def delete_school_callback(cb: CallbackQuery):
+    school_id = int(cb.data.split(":")[1])
+    deleted = delete_school(school_id)
+    if deleted:
+        await cb.answer("✅ Maktab o'chirildi.")
+        await school_management_handler(cb)
+    else:
+        await cb.answer("❌ Maktab topilmadi.", show_alert=True)
+
+
 @admin_router.callback_query(F.data.regexp(r"^save_file:(?:yes|no)$"))
 async def save_file_permission_handler(cb:CallbackQuery, state:FSMContext):
     permission = cb.data.split(":")[1] == "yes"
@@ -334,21 +397,28 @@ async def security_list_handler(cb: CallbackQuery):
     await cb.message.edit_text("🛡️ Qo'riqchilar ro'yxati:", reply_markup=markup)
 
 
-@admin_router.callback_query(F.data.regexp(r"^security:user:\d+:guards$"))
+@admin_router.callback_query(F.data == "security:school_counselors")
+async def security_school_counselor_list_handler(cb: CallbackQuery):
+    markup = get_security_user_list_markup("school_counselors", "security")
+    await cb.message.edit_text("🎓 Maktab maslahatchilari ro'yxati:", reply_markup=markup)
+
+
+@admin_router.callback_query(F.data.regexp(r"^security:user:\d+:guards$|^security:user:\d+:school_counselors$"))
 async def security_user_detail_handler(cb: CallbackQuery):
     _, _, user_id, list_type = cb.data.split(":")
     user = get_user_by_id(int(user_id))
     if user is None:
         await cb.answer("Foydalanuvchi topilmadi.", show_alert=True)
         return
+    prefix = "🛡️" if list_type == "guards" else "🎓"
     await cb.message.edit_text(
-        f"🛡️ {user.name}\n📱 {user.phone_number or '—'}\n\nNima qilmoqchisiz?",
+        f"{prefix} {user.name}\n📱 {user.phone_number or '—'}\n\nNima qilmoqchisiz?",
         reply_markup=get_security_user_actions_markup(user.id, list_type),
     )
 
 
 @admin_router.callback_query(
-    F.data.regexp(r"^security:(demote|delete):\d+:guards$")
+    F.data.regexp(r"^security:(demote|delete):\d+:guards$|^security:(demote|delete):\d+:school_counselors$")
 )
 async def security_user_action_handler(cb: CallbackQuery):
     _, action, user_id, list_type = cb.data.split(":")
@@ -359,21 +429,34 @@ async def security_user_action_handler(cb: CallbackQuery):
 
     if action == "demote":
         set_user_role(user.chat_id, "user")
-        text = "🛡️ Qo'riqchi ro'lidan olib tashlandi."
-    else:  # delete
+        text = "🛡️ Qo'riqchi ro'lidan olib tashlandi." if list_type == "guards" else "🎓 Maktab maslahatchisi ro'lidan olib tashlandi."
+    else:
         delete_user(user.id)
         text = "🗑 Foydalanuvchi o'chirildi."
 
     await cb.answer(text, show_alert=True)
-    markup = get_security_user_list_markup("guards", "security")
-    await cb.message.edit_text("🛡️ Qo'riqchilar ro'yxati:", reply_markup=markup)
+    next_list = "guards" if list_type == "guards" else "school_counselors"
+    markup = get_security_user_list_markup(next_list, "security")
+    title = "🛡️ Qo'riqchilar ro'yxati:" if next_list == "guards" else "🎓 Maktab maslahatchilari ro'yxati:"
+    await cb.message.edit_text(title, reply_markup=markup)
 
 
 @admin_router.callback_query(F.data == "security:add_guard")
 async def security_add_guard_handler(cb: CallbackQuery, state: FSMContext):
+    await state.set_data({"security_role": "guard"})
     await state.set_state(SettingsState.security_select_user)
     await cb.message.edit_text(
         "Qo'riqchi qilmoqchi bo'lgan foydalanuvchining chat ID sini yuboring.",
+        reply_markup=back_admin_menu,
+    )
+
+
+@admin_router.callback_query(F.data == "security:add_school_counselor")
+async def security_add_school_counselor_handler(cb: CallbackQuery, state: FSMContext):
+    await state.set_data({"security_role": "school_counselor"})
+    await state.set_state(SettingsState.security_select_user)
+    await cb.message.edit_text(
+        "Maktab maslahatchisi qilmoqchi bo'lgan foydalanuvchining chat ID sini yuboring.",
         reply_markup=back_admin_menu,
     )
 
@@ -387,16 +470,20 @@ async def security_select_user_handler(message: Message, state: FSMContext):
         await message.answer("Iltimos, to'g'ri chat ID yuboring!", reply_markup=back_admin_menu)
         return
 
-    if set_user_role(chat_id, "guard"):
-        await message.answer("🛡️ Foydalanuvchi qo'riqchi qilindi.")
+    role_name = (await state.get_data()).get("security_role", "guard")
+    if set_user_role(chat_id, role_name):
+        label = "🛡️" if role_name == "guard" else "🎓"
+        text = f"{label} Foydalanuvchi {'qo\'riqchi' if role_name == 'guard' else 'maktab maslahatchisi'} qilindi."
+        await message.answer(text)
     else:
         await message.answer("❌ Bunday foydalanuvchi topilmadi.")
 
     await state.clear()
 
-    # refresh the security list
-    markup = get_security_user_list_markup("guards", "security")
-    await message.answer("🛡️ Qo'riqchilar ro'yxati:", reply_markup=markup)
+    list_type = "guards" if role_name == "guard" else "school_counselors"
+    markup = get_security_user_list_markup(list_type, "security")
+    title = "🛡️ Qo'riqchilar ro'yxati:" if list_type == "guards" else "🎓 Maktab maslahatchilari ro'yxati:"
+    await message.answer(title, reply_markup=markup)
 
 
 # --------------------------
