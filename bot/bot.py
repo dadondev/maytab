@@ -127,7 +127,7 @@ async def register_phone(message: Message, state: FSMContext):
         await state.set_state(RegisterState.phone)
 
         await message.answer(
-            text="❌ Telefon raqamingiz noto'g'ri yoki yuborilmadi. Iltimos, to'g'ri telefon raqamingizni yuboring yoki kontaktni tanlang.",
+            text="❌ Telefon raqamingiz noto'g'ri yoki yuborilmadi. Iltimos, to'g'ri telefon raqamingizni yuboring yoki kontaktni tanlang. Agar kontakt ulashishda muammo bo'layotgan bo'lsa unda shunchaki raqamingizni quyidagi formatda yuboring. Masalan: +998XXXXXXXXX",
             reply_markup=register_phone_markup,
         )
         return
