@@ -9,10 +9,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
     # BigInteger to prevent overflow with large Telegram/messaging IDs
     chat_id = Column(BigInteger, unique=True)
-    phone_number = Column(String, nullable=True)
     auto_send = Column(Boolean, default=False)
     sms_service = Column(Boolean, default=False)
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=True)
@@ -119,6 +117,14 @@ def _add_missing_columns():
     if "school_id" not in user_columns:
         with engine.begin() as conn:
             conn.execute(sa.text("ALTER TABLE users ADD COLUMN school_id INTEGER"))
+
+    for dropped in ("name", "phone_number"):
+        if dropped in user_columns:
+            with engine.begin() as conn:
+                try:
+                    conn.execute(sa.text(f'ALTER TABLE "users" DROP COLUMN "{dropped}"'))
+                except Exception:
+                    pass
 
     # Migrate chat_id columns to BIGINT so large Telegram IDs don't overflow.
     _ensure_bigint_column("users", "chat_id")

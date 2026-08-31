@@ -19,7 +19,7 @@ def get_security_user_list_markup(list_type: str, back_callback: str):
     for user in rows:
         prefix = "🛡️" if list_type == "guards" else "🎓"
         markup.button(
-            text=f"{prefix} {user.name}",
+            text=f"{prefix} {user.chat_id}",
             callback_data=f"security:user:{user.id}:{list_type}",
         )
     markup.adjust(1)

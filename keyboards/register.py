@@ -2,8 +2,6 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeybo
 
 register_markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="✅ Ro'yhatdan o'tish", callback_data="register")]])
 
-register_phone_markup = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="📱 Telefon raqamingizni yuboring", request_contact=True)]], resize_keyboard=True)
-
 school_selection_markup = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📍 Yaqin maktabni tanlash"), KeyboardButton(text="✍️ Qo'lda tanlash")],

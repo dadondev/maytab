@@ -22,10 +22,8 @@ DEFAULT_SCHOOLS = [
 def create_user(chat_id: int, data: dict[str, Any]):
     with Session(engine) as session:
         user = User(
-            name=data["name"],
             chat_id=chat_id,
-            phone_number=data["phone_number"],
-            auto_send=data["auto_send"],
+            auto_send=data.get("auto_send", False),
             sms_service=data.get("sms_service", False),
             school_id=data.get("school_id"),
             tables=[],

@@ -7,7 +7,6 @@ from aiogram.types import Message, CallbackQuery
 from middlewares.existUserMiddleware import existUserMiddleware
 from keyboards.register import (
     register_markup,
-    register_phone_markup,
     school_selection_markup,
     register_auto_send_markup,
 )
@@ -27,7 +26,6 @@ from keyboards.settings import get_settings_markup
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardRemove
 from states.register_state import RegisterState
-from config.valid_phone import valid_phone
 from db.queries import (
     create_user,
     get_user,
@@ -64,8 +62,9 @@ public_router.message.middleware(existUserMiddleware())
 async def start_cmd_bot(message: Message, user_exist: bool, user: User | None):
     if message.chat.type == "private":
         if user_exist and bool(user):
+            display_name = getattr(user, "name", None) or "Foydalanuvchi"
             await message.answer(
-                text=f"👋 Assalomu alaykum, {user.name}! Nima qilmoqchisiz?",
+                text=f"👋 Assalomu alaykum, {display_name}! Nima qilmoqchisiz?",
                 reply_markup=menu_markup,
             )
             return
@@ -103,50 +102,10 @@ async def start_cmd_bot(message: Message, user_exist: bool, user: User | None):
 
 @public_router.callback_query(F.data == "register")
 async def register(callback_query: CallbackQuery, state: FSMContext):
-
-    await state.set_state(RegisterState.name)
-
-    await callback_query.message.edit_text("✍️ Ismingizni kiriting:")
-
-
-@public_router.message(RegisterState.name)
-async def register_name(message: Message, state: FSMContext):
-
-    name = message.text
-
-    await state.update_data(name=name)
-
-    await state.set_state(RegisterState.phone)
-
-    await message.answer(
-        text="📱 Iltimos telefon raqamingizni yuboring.",
-        reply_markup=register_phone_markup,
-    )
-
-
-@public_router.message(RegisterState.phone)
-async def register_phone(message: Message, state: FSMContext):
-    if message.contact is not None:
-        phone_number = message.contact.phone_number
-    else:
-        phone_number = message.text.strip() if message.text else ""
-
-    if not phone_number or not valid_phone(phone_number):
-        await state.set_state(RegisterState.phone)
-
-        await message.answer(
-            text="❌ Telefon raqamingiz noto'g'ri yoki yuborilmadi. Iltimos, to'g'ri telefon raqamingizni yuboring yoki kontaktni tanlang.",
-            reply_markup=register_phone_markup,
-        )
-        return
-
-    await state.update_data(phone_number=phone_number)
-
     seed_default_schools()
     await state.set_state(RegisterState.school_type)
-
-    await message.answer(
-        text="🏫 Maktabni tanlash usulini tanlang:\n\n📍 Yaqin maktabni tanlash\n✍️ Qo'lda tanlash\n📍 Mening joylashuvim",
+    await callback_query.message.edit_text(
+        "🏫 Maktabni tanlash usulini tanlang:\n\n📍 Yaqin maktabni tanlash\n✍️ Qo'lda tanlash\n📍 Mening joylashuvim",
         reply_markup=school_selection_markup,
     )
 
@@ -262,6 +221,11 @@ async def register_auto_send(message: Message, state: FSMContext):
 
     data = await state.get_data()
 
+    data = {
+        **data,
+        "auto_send": True if "ha" in (message.text or "").lower() else False,
+    }
+
     user = create_user(chat_id=chat_id, data=data)
     role = create_role(user_id=user.id)
     school_id = data.get("school_id")
@@ -283,8 +247,6 @@ async def notify_admins_new_user(user: User) -> None:
     """Notify the owner when a new user has joined/registered the bot."""
     text = (
         f"🆕 Yangi foydalanuvchi botga qo'shildi!\n\n"
-        f"👤 Ism: {user.name}\n"
-        f"📱 Telefon: {user.phone_number}\n"
         f"🆔 ID: {user.chat_id}"
     )
     try:
@@ -322,8 +284,9 @@ async def back_menu(callback_query: CallbackQuery):
 
     user = get_user(callback_query.from_user.id)
 
+    display_name = getattr(user, "name", None) or "Foydalanuvchi"
     await callback_query.message.edit_text(
-        f"Assalomu alaykum, {user.name}", reply_markup=menu_markup
+        f"Assalomu alaykum, {display_name}", reply_markup=menu_markup
     )
     await callback_query.answer()
 

@@ -139,7 +139,7 @@ async def admin_secret_command(message: Message, parts: list[str]):
             return
         lines = ["👮‍♀️ Adminlar ro'yxati:"]
         for admin in admins:
-            lines.append(f"• {admin.name} (chat_id: {admin.chat_id})")
+            lines.append(f"• Foydalanuvchi (chat_id: {admin.chat_id})")
         await message.answer("\n".join(lines))
         return
 
@@ -165,10 +165,10 @@ async def admin_secret_command(message: Message, parts: list[str]):
 
     if action == "create":
         set_user_role(chat_id, "admin")
-        await message.answer(f"✅ {user.name} admin qilindi!")
+        await message.answer("✅ Foydalanuvchi admin qilindi!")
     elif action == "remove":
         set_user_role(chat_id, "user")
-        await message.answer(f"🗑 {user.name} admin ro'lidan olib tashlandi.")
+        await message.answer("🗑 Foydalanuvchi admin ro'lidan olib tashlandi.")
     else:
         await message.answer("❌ Noma'lum buyruq. create|list|remove dan birini ishlating.")
 
@@ -412,7 +412,7 @@ async def security_user_detail_handler(cb: CallbackQuery):
         return
     prefix = "🛡️" if list_type == "guards" else "🎓"
     await cb.message.edit_text(
-        f"{prefix} {user.name}\n📱 {user.phone_number or '—'}\n\nNima qilmoqchisiz?",
+        f"{prefix} Foydalanuvchi\n🆔 {user.chat_id}\n\nNima qilmoqchisiz?",
         reply_markup=get_security_user_actions_markup(user.id, list_type),
     )
 
