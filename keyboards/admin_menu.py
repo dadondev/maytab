@@ -8,9 +8,6 @@ admin_menu_markup = InlineKeyboardMarkup(inline_keyboard=[
         InlineKeyboardButton(text="📬 Xabar yuborish 📬", callback_data="send_message")
     ],
     [
-        InlineKeyboardButton(text="🏫 Maktablar 🏫", callback_data="schools")
-    ],
-    [
         InlineKeyboardButton(text="📋 Vazifalar 📋", callback_data="tasks")
     ],
     [

@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import declarative_base, relationship
 from db.engine import engine
 
@@ -13,10 +13,7 @@ class User(Base):
     chat_id = Column(BigInteger, unique=True)
     auto_send = Column(Boolean, default=False)
     sms_service = Column(Boolean, default=False)
-    school_id = Column(Integer, ForeignKey("schools.id"), nullable=True)
     tables = Column(JSON, default=list)
-
-    school = relationship("School")
 
     # Added cascade to handle child cleanup when a user is deleted
     role = relationship(
@@ -43,17 +40,6 @@ class Task(Base):
     file_path = Column(String)
     # Status lifecycle: pending -> running -> completed / failed
     status = Column(String, default="pending")
-
-
-class School(Base):
-    __tablename__ = "schools"
-
-    id = Column(Integer, primary_key=True)
-    region = Column(String, nullable=False)
-    province = Column(String, nullable=False)
-    name = Column(String, nullable=False)
-    latitude = Column(Float, default=0.0)
-    longitude = Column(Float, default=0.0)
 
 
 class Grade(Base):
@@ -114,17 +100,23 @@ def _add_missing_columns():
             )
 
     user_columns = {c["name"] for c in inspector.get_columns("users")}
-    if "school_id" not in user_columns:
-        with engine.begin() as conn:
-            conn.execute(sa.text("ALTER TABLE users ADD COLUMN school_id INTEGER"))
 
-    for dropped in ("name", "phone_number"):
+    for dropped in ("name", "phone_number", "school_id"):
         if dropped in user_columns:
             with engine.begin() as conn:
                 try:
                     conn.execute(sa.text(f'ALTER TABLE "users" DROP COLUMN "{dropped}"'))
                 except Exception:
                     pass
+
+    # Drop the legacy schools table if it still exists.
+    try:
+        table_names = set(inspector.get_table_names())
+        if "schools" in table_names:
+            with engine.begin() as conn:
+                conn.execute(sa.text('DROP TABLE IF EXISTS "schools"'))
+    except Exception:
+        pass
 
     # Migrate chat_id columns to BIGINT so large Telegram IDs don't overflow.
     _ensure_bigint_column("users", "chat_id")
