@@ -3,6 +3,15 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from db.queries import get_grades, get_groups
 
+DAY_BUTTONS = [
+    ("🟡 Dushanba", "monday"),
+    ("🔴 Seshanba", "tuesday"),
+    ("🟢 Chorshanba", "wednesday"),
+    ("🟣 Payshanba", "thursday"),
+    ("🔵 Juma", "friday"),
+    ("🟠 Shanba", "saturday"),
+]
+
 
 def get_group_grades_markup():
     markup = InlineKeyboardBuilder()
@@ -31,10 +40,11 @@ def get_group_classes_markup(grade_id: int):
 
 def get_group_start_markup(group_id: int | None = None):
     markup = InlineKeyboardBuilder()
-    if group_id is not None:
-        markup.button(text="📅 Jadvallarni ko'rish", callback_data=f"show_table:{group_id}")
-    markup.button(text="🔄 Jadvalni o'zgartirish", callback_data="groupchat:grades")
+    for label, day_key in DAY_BUTTONS:
+        markup.button(text=label, callback_data=f"show_day:{group_id}:{day_key}")
+    markup.adjust(2)
     markup.row(
-        InlineKeyboardButton(text="📋 Umumiy jadval", callback_data="general_tables")
+        InlineKeyboardButton(text="🔄 Jadvalni o'zgartirish", callback_data="groupchat:grades"),
+        InlineKeyboardButton(text="📅 To'liq jadval", callback_data=f"show_table:{group_id}"),
     )
     return markup.as_markup()

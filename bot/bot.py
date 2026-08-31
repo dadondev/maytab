@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from aiogram import Dispatcher, F, Router
 from config.utils import TOKEN
 from aiogram.filters import CommandStart
@@ -70,14 +72,18 @@ async def start_cmd_bot(message: Message, user_exist: bool, user: User | None):
     if group_binding is not None:
         group = get_group(group_binding.group_id)
         if group is not None:
-            schedule_text = (
-                f"📅 Bu guruhga biriktirilgan jadval: <b>{group.name}</b>\n\n"
-                + (format_table(group) if group.table else "😕 Hozircha jadval mavjud emas.")
-            )
+            today_key = datetime.now().strftime("%A").lower()
+            if not group.table:
+                await message.answer(
+                    text=f"😕 Bu guruhga biriktirilgan <b>{group.name}</b> jadvali hozircha mavjud emas.",
+                    reply_markup=get_group_start_markup(group.id),
+                    parse_mode="HTML",
+                )
+                return
+
             await message.answer(
-                text=schedule_text,
+                text=format_day(group, today_key),
                 reply_markup=get_group_start_markup(group.id),
-                parse_mode="HTML",
             )
             return
 
