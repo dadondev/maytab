@@ -10,6 +10,10 @@ from keyboards.register import (
 )
 from keyboards.menu import menu_markup, group_menu_markup
 from keyboards.my_tables import get_my_tables_markup
+from keyboards.group_chat import (
+    get_group_grades_markup,
+    get_group_start_markup,
+)
 from keyboards.user_tables import (
     get_grades_markup,
     get_groups_markup,
@@ -28,6 +32,7 @@ from db.queries import (
     get_grades,
     get_groups,
     get_group,
+    get_group_chat,
     update_user_tables,
     update_user_setting,
 )
@@ -61,9 +66,24 @@ async def start_cmd_bot(message: Message, user_exist: bool, user: User | None):
         )
         return
 
+    group_binding = get_group_chat(message.chat.id)
+    if group_binding is not None:
+        group = get_group(group_binding.group_id)
+        if group is not None:
+            schedule_text = (
+                f"📅 Bu guruhga biriktirilgan jadval: <b>{group.name}</b>\n\n"
+                + (format_table(group) if group.table else "😕 Hozircha jadval mavjud emas.")
+            )
+            await message.answer(
+                text=schedule_text,
+                reply_markup=get_group_start_markup(group.id),
+                parse_mode="HTML",
+            )
+            return
+
     await message.answer(
-        text="👋 Assalomu alaykum! Bu guruhda faqat sinf jadvallari bilan bog'liq funksiyalar mavjud.",
-        reply_markup=group_menu_markup,
+        text="👋 Assalomu alaykum! Bu guruhda hali biriktirilgan sinf jadvali yo'q. Iltimos, sinfni tanlang va guruh jadvalini o'rnating.",
+        reply_markup=get_group_grades_markup(),
     )
 
 

@@ -27,3 +27,14 @@ def get_group_classes_markup(grade_id: int):
         InlineKeyboardButton(text="⬅️ Ortga", callback_data="groupchat:grades")
     )
     return markup.as_markup()
+
+
+def get_group_start_markup(group_id: int | None = None):
+    markup = InlineKeyboardBuilder()
+    if group_id is not None:
+        markup.button(text="📅 Jadvallarni ko'rish", callback_data=f"show_table:{group_id}")
+    markup.button(text="🔄 Jadvalni o'zgartirish", callback_data="groupchat:grades")
+    markup.row(
+        InlineKeyboardButton(text="📋 Umumiy jadval", callback_data="general_tables")
+    )
+    return markup.as_markup()
