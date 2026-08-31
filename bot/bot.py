@@ -183,6 +183,42 @@ async def back_menu(callback_query: CallbackQuery):
     await callback_query.answer()
 
 
+@public_router.callback_query(F.data == "refresh_selected_tables")
+async def refresh_selected_tables_handler(callback_query: CallbackQuery):
+    user = get_user(callback_query.from_user.id)
+    tables = user.tables or [] if user else []
+
+    if not tables:
+        await callback_query.message.edit_text(
+            "😕 Sizda hozircha tanlangan jadval mavjud emas.",
+            reply_markup=get_my_tables_markup([]),
+        )
+        await callback_query.answer()
+        return
+
+    refreshed = []
+    for group_id in tables:
+        group = get_group(group_id)
+        if group is not None and group.table:
+            refreshed.append(group)
+
+    if not refreshed:
+        await callback_query.message.edit_text(
+            "😕 Tanlangan jadvallar hozircha mavjud emas yoki yangilanmagan.",
+            reply_markup=get_my_tables_markup(tables),
+        )
+        await callback_query.answer()
+        return
+
+    for group in refreshed:
+        await callback_query.message.answer(
+            format_table(group),
+            reply_markup=get_table_days_markup(group.id, back_callback="my_tables"),
+        )
+
+    await callback_query.answer("✅ Tanlangan jadval(lar) yangilandi.")
+
+
 @public_router.callback_query(F.data == "add_user_table")
 async def add_user_table(callback_query: CallbackQuery):
     grades = get_grades()

@@ -14,6 +14,9 @@ def get_my_tables_markup(tables: list[int]):
     markup.adjust(2)
     markup.row(
         InlineKeyboardButton(text="⬅️ Ortga", callback_data="back_menu"),
+        InlineKeyboardButton(text="🔄 Yangilash", callback_data="refresh_selected_tables"),
+    )
+    markup.row(
         InlineKeyboardButton(text="➕ Jadval qo'shish", callback_data="add_user_table"),
     )
     return markup.as_markup()
