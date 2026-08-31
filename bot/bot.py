@@ -60,7 +60,11 @@ public_router.message.middleware(existUserMiddleware())
 async def start_cmd_bot(message: Message, user_exist: bool, user: User | None):
     if message.chat.type == "private":
         if user_exist and bool(user):
-            display_name = getattr(user, "name", None) or "Foydalanuvchi"
+            display_name = (
+                message.from_user.first_name
+                or message.from_user.username
+                or "Foydalanuvchi"
+            )
             await message.answer(
                 text=f"👋 Assalomu alaykum, {display_name}! Nima qilmoqchisiz?",
                 reply_markup=menu_markup,
@@ -282,7 +286,11 @@ async def back_menu(callback_query: CallbackQuery):
 
     user = get_user(callback_query.from_user.id)
 
-    display_name = getattr(user, "name", None) or "Foydalanuvchi"
+    display_name = (
+        callback_query.from_user.first_name
+        or callback_query.from_user.username
+        or "Foydalanuvchi"
+    )
     await callback_query.message.edit_text(
         f"Assalomu alaykum, {display_name}", reply_markup=menu_markup
     )
