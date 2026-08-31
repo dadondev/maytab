@@ -85,12 +85,16 @@ async def register_name(message: Message, state: FSMContext):
 
 @public_router.message(RegisterState.phone)
 async def register_phone(message: Message, state: FSMContext):
-    phone_number = message.contact.phone_number
-    if not valid_phone(phone_number):
+    if message.contact is not None:
+        phone_number = message.contact.phone_number
+    else:
+        phone_number = message.text.strip() if message.text else ""
+
+    if not phone_number or not valid_phone(phone_number):
         await state.set_state(RegisterState.phone)
 
         await message.answer(
-            text="❌ Telefon raqamingiz noto'g'ri. Iltimos, to'g'ri telefon raqamingizni yuboring.",
+            text="❌ Telefon raqamingiz noto'g'ri yoki yuborilmadi. Iltimos, to'g'ri telefon raqamingizni yuboring yoki kontaktni tanlang.",
             reply_markup=register_phone_markup,
         )
         return
