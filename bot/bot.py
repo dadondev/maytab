@@ -8,7 +8,7 @@ from keyboards.register import (
     register_phone_markup,
     register_auto_send_markup,
 )
-from keyboards.menu import menu_markup
+from keyboards.menu import menu_markup, group_menu_markup
 from keyboards.my_tables import get_my_tables_markup
 from keyboards.user_tables import (
     get_grades_markup,
@@ -47,17 +47,24 @@ public_router.message.middleware(existUserMiddleware())
 
 @public_router.message(CommandStart())
 async def start_cmd_bot(message: Message, user_exist: bool, user: User | None):
+    if message.chat.type == "private":
+        if user_exist and bool(user):
+            await message.answer(
+                text=f"👋 Assalomu alaykum, {user.name}! Nima qilmoqchisiz?",
+                reply_markup=menu_markup,
+            )
+            return
 
-    if user_exist and bool(user):
-        await message.answer(
-            text=f"👋 Assalomu alaykum, {user.name}! Nima qilmoqchisiz?", reply_markup=menu_markup
-        )
-
-    else:
         await message.answer(
             text="👋 Assalomu alaykum! Botdan foydalanishdan avval ro'yhatdan o'tishingiz lozim. \n\n✅ Ro'yhatdan o'tish uchun pastdagi tugmani bosing!",
             reply_markup=register_markup,
         )
+        return
+
+    await message.answer(
+        text="👋 Assalomu alaykum! Bu guruhda faqat sinf jadvallari bilan bog'liq funksiyalar mavjud.",
+        reply_markup=group_menu_markup,
+    )
 
 
 @public_router.callback_query(F.data == "register")

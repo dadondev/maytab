@@ -7,3 +7,7 @@ menu_markup = InlineKeyboardMarkup(inline_keyboard=[[
 ], [
     InlineKeyboardButton(text="⚙️ Sozlamalar ⚙️", callback_data="settings")
 ]])
+
+group_menu_markup = InlineKeyboardMarkup(inline_keyboard=[[
+    InlineKeyboardButton(text="📋 Umumiy jadval 📋", callback_data="general_tables")
+]])
