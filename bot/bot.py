@@ -131,14 +131,20 @@ async def register_school_type(message: Message, state: FSMContext):
 
     if "yaqin" in text.lower() or "Mening joylashuvim" in text:
         await message.answer(
+<<<<<<< HEAD
             "📍 Iltimos, joylashuvingizni yuboring. Bot yaqinidagi maktabni topadi.",
             reply_markup=school_selection_markup,
+=======
+            text="❌ Telefon raqamingiz noto'g'ri yoki yuborilmadi. Iltimos, to'g'ri telefon raqamingizni yuboring yoki kontaktni tanlang. Agar kontakt ulashishda muammo bo'layotgan bo'lsa unda shunchaki raqamingizni quyidagi formatda yuboring. Masalan: +998XXXXXXXXX",
+            reply_markup=register_phone_markup,
+>>>>>>> 9d35bd439bc9dc2b912cae055ddb66bcd39a4814
         )
         return
 
     if "qo'lda" in text.lower() or "Qo'lda" in text or "qo'lda" in text:
         regions = get_school_regions()
         if not regions:
+            
             await message.answer("😕 Maktab ma'lumotlari hozircha mavjud emas.")
             return
         await state.update_data(school_mode="manual")
