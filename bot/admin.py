@@ -12,6 +12,7 @@ from bot.bootstrap import bot
 
 from states.setting_state import SettingsState
 from keyboards.admin_menu import admin_menu_markup, back_admin_menu
+from keyboards.contact_admin import get_admin_reply_back_markup
 from keyboards.admin_admit_task_date import admit_task_markup
 from keyboards.admin_broadcast import get_broadcast_confirm_markup
 from keyboards.admin_tasks import get_tasks_list_markup, get_task_actions_markup
@@ -401,6 +402,65 @@ async def security_select_user_handler(message: Message, state: FSMContext):
 
     markup = get_security_user_list_markup("guards", "security")
     await message.answer("🛡️ Qo'riqchilar ro'yxati:", reply_markup=markup)
+
+
+# --------------------------
+# ↩️ Foydalanuvchiga javob berish (reply to contact request)
+# --------------------------
+@admin_router.callback_query(F.data.regexp(r"^reply_user:(-?\d+)$"))
+async def admin_reply_start_handler(cb: CallbackQuery, state: FSMContext):
+    """Start the flow to reply to a specific user's contact request."""
+    user_chat_id = int(cb.data.split(":")[1])
+    await state.set_data({"reply_to_chat_id": user_chat_id})
+    await state.set_state(SettingsState.admin_reply)
+    await cb.message.edit_text(
+        f"✍️ {user_chat_id} foydalanuvchiga javobingizni yozing:\n"
+        "(yuborilgan xabar shu foydalanuvchiga yetkaziladi)",
+        reply_markup=get_admin_reply_back_markup(),
+    )
+    await cb.answer()
+
+
+@admin_router.callback_query(F.data == "return_admin_menu")
+async def admin_reply_cancel_handler(cb: CallbackQuery, state: FSMContext):
+    """Cancel replying and return to the admin menu."""
+    await state.clear()
+    await cb.message.edit_text(
+        "Siz admin menyusidasiz!", reply_markup=admin_menu_markup
+    )
+    await cb.answer()
+
+
+@admin_router.message(SettingsState.admin_reply)
+async def admin_reply_message_handler(message: Message, state: FSMContext):
+    """Send the admin's reply text back to the user."""
+    text = message.text
+    if not text:
+        await message.answer("Iltimos, matn yuboring!")
+        return
+
+    data = await state.get_data()
+    user_chat_id = data.get("reply_to_chat_id")
+    await state.clear()
+
+    if not user_chat_id:
+        await message.answer("❌ Javob uchun foydalanuvchi topilmadi.")
+        return
+
+    try:
+        await bot.send_message(
+            chat_id=user_chat_id,
+            text=f"👨‍💼 <b>Admin javobi:</b>\n\n{text}",
+            parse_mode="HTML",
+        )
+        await message.answer("✅ Javob foydalanuvchiga yuborildi.")
+    except Exception:
+        await message.answer(
+            "❌ Javobni yuborishda xatolik yuz berdi. "
+            "Foydalanuvchi botni bloklagan bo'lishi mumkin."
+        )
+
+    await message.answer("Siz admin menyusidasiz!", reply_markup=admin_menu_markup)
 
 
 # --------------------------

@@ -6,3 +6,5 @@ class SettingsState(StatesGroup):
     date = State()
     broadcast_message = State()
     security_select_user = State()
+    contact_admin_message = State()
+    admin_reply = State()

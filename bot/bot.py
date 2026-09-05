@@ -1,7 +1,8 @@
 from datetime import datetime
 
 from aiogram import Dispatcher, F, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from middlewares.existUserMiddleware import existUserMiddleware
 from keyboards.menu import menu_markup
@@ -17,6 +18,11 @@ from keyboards.user_tables import (
     get_table_days_markup,
 )
 from keyboards.settings import get_settings_markup
+from keyboards.contact_admin import (
+    get_contact_admin_back_markup,
+    get_admin_reply_markup,
+)
+from states.setting_state import SettingsState
 from db.queries import (
     get_user,
     get_grades,
@@ -76,6 +82,82 @@ async def start_cmd_bot(message: Message, user_exist: bool, user: User | None):
     await message.answer(
         text="👋 Assalomu alaykum! Bu guruhda hali biriktirilgan sinf jadvali yo'q. Iltimos, sinfni tanlang va guruh jadvalini o'rnating.",
         reply_markup=get_group_grades_markup(),
+    )
+
+
+@public_router.message(Command("chat_id"))
+async def chat_id_cmd(message: Message):
+    """Show the user's chat ID and (in groups) the group chat ID."""
+    chat_id = message.chat.id
+    lines = [f"🆔 Sizning chat ID: <code>{chat_id}</code>"]
+
+    if message.chat.type in ("group", "supergroup"):
+        lines.append(f"👥 Guruh chat ID: <code>{chat_id}</code>")
+    elif message.from_user:
+        lines.append(f"👤 Sizning user ID: <code>{message.from_user.id}</code>")
+
+    await message.answer(text="\n".join(lines), parse_mode="HTML")
+
+
+@public_router.callback_query(F.data == "contact_admin")
+async def contact_admin_start(callback_query: CallbackQuery, state: FSMContext):
+    """Start the flow for the user to send a message to the admin."""
+    await state.set_state(SettingsState.contact_admin_message)
+    await callback_query.message.edit_text(
+        "📞 Adminga xabaringizni yozib yuboring.\n\n"
+        "Admin sizning xabaringizni imkon qadar tezroq ko'rib chiqadi.",
+        reply_markup=get_contact_admin_back_markup(),
+    )
+    await callback_query.answer()
+
+
+@public_router.callback_query(F.data == "contact_admin_back")
+async def contact_admin_back(callback_query: CallbackQuery, state: FSMContext):
+    """Return to the main menu without sending anything."""
+    await state.clear()
+    user = get_user(callback_query.from_user.id)
+    display_name = (
+        callback_query.from_user.first_name
+        or callback_query.from_user.username
+        or "Foydalanuvchi"
+    )
+    await callback_query.message.edit_text(
+        f"Assalomu alaykum, {display_name}", reply_markup=menu_markup
+    )
+    await callback_query.answer()
+
+
+@public_router.message(SettingsState.contact_admin_message)
+async def contact_admin_message_handler(message: Message, state: FSMContext):
+    """Receive the user's message and forward it to the owner/admin."""
+    text = message.text
+    if not text:
+        await message.answer("Iltimos, matn yuboring!")
+        return
+    await state.clear()
+
+    user = message.from_user
+
+    if OWNER_CHAT_ID:
+        try:
+            await bot.send_message(
+                chat_id=int(OWNER_CHAT_ID),
+                text=(
+                    f"📞 <b>Adminga murojaat</b>\n\n"
+                    f"👤 Foydalanuvchi: {user.full_name if user else 'Noma\u2019lum'}\n"
+                    f"🆔 User ID: <code>{user.id if user else '—'}</code>\n"
+                    f"💬 Chat ID: <code>{message.chat.id}</code>\n\n"
+                    f"📝 Xabar: {text}"
+                ),
+                parse_mode="HTML",
+                reply_markup=get_admin_reply_markup(message.chat.id),
+            )
+        except Exception:
+            pass  # Owner may not be reachable.
+
+    await message.answer(
+        "✅ Xabaringiz qabul qilindi. Admin tez orada javob beradi, rahmat!",
+        reply_markup=menu_markup,
     )
 
 

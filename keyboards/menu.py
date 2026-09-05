@@ -6,6 +6,8 @@ menu_markup = InlineKeyboardMarkup(inline_keyboard=[[
     InlineKeyboardButton(text="📋 Umumiy jadval 📋", callback_data="general_tables")
 ], [
     InlineKeyboardButton(text="⚙️ Sozlamalar ⚙️", callback_data="settings")
+], [
+    InlineKeyboardButton(text="📞 Adminga murojaat qilish", callback_data="contact_admin")
 ]])
 
 group_menu_markup = InlineKeyboardMarkup(inline_keyboard=[[
